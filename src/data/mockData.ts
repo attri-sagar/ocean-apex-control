@@ -31,6 +31,42 @@ export interface Task {
   tags: string[];
 }
 
+// === KANBAN BOARD TYPES ===
+export interface BoardColumn {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
+}
+
+export interface Subtask {
+  id: string;
+  taskId: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface TaskAssignee {
+  id: string;
+  taskId: string;
+  displayName: string;
+  color: string;
+}
+
+export interface KanbanTask {
+  id: string;
+  title: string;
+  description: string;
+  columnId: string;
+  priority: "low" | "medium" | "high" | "urgent";
+  dueDate: string | null;
+  position: number;
+  createdAt: string;
+  subtasks: Subtask[];
+  assignees: TaskAssignee[];
+  tags: string[];
+}
+
 export interface LogEntry {
   id: string;
   agentEmoji: string;
