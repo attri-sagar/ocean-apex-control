@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 import Header from "@/components/Header";
 import CommandDeck from "@/components/CommandDeck";
 import AgentProfiles from "@/components/AgentProfiles";
@@ -7,18 +9,6 @@ import TaskBoard from "@/components/TaskBoard";
 import AILog from "@/components/AILog";
 import Council from "@/components/Council";
 import MeetingIntelligence from "@/components/MeetingIntelligence";
-import {
-  LayoutDashboard, Users, Kanban, ScrollText, MessagesSquare, CalendarCheck,
-} from "lucide-react";
-
-const tabs = [
-  { id: "command", label: "Command Deck", icon: LayoutDashboard },
-  { id: "agents", label: "Agents", icon: Users },
-  { id: "tasks", label: "Task Board", icon: Kanban },
-  { id: "log", label: "AI Log", icon: ScrollText },
-  { id: "council", label: "Council", icon: MessagesSquare },
-  { id: "meetings", label: "Meetings", icon: CalendarCheck },
-];
 
 const tabContent: Record<string, React.ReactNode> = {
   command: <CommandDeck />,
@@ -33,43 +23,42 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState("command");
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6 space-y-4">
-      <Header />
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full relative">
+        {/* Aurora background */}
+        <div className="aurora-bg" />
+        <div className="grid-overlay" />
 
-      {/* Tab Navigation */}
-      <div className="glass-card p-1.5 flex gap-1 overflow-x-auto">
-        {tabs.map((tab, i) => (
-          <motion.button
-            key={tab.id}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-              activeTab === tab.id
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/30"
-            }`}
-          >
-            <tab.icon className="w-4 h-4" />
-            <span className="hidden sm:inline">{tab.label}</span>
-          </motion.button>
-        ))}
+        <AppSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+
+        <div className="flex-1 flex flex-col min-h-screen relative z-10">
+          <div className="p-3">
+            <Header />
+          </div>
+
+          {/* Tab Content */}
+          <main className="flex-1 px-4 pb-4 overflow-y-auto">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              >
+                {tabContent[activeTab]}
+              </motion.div>
+            </AnimatePresence>
+          </main>
+
+          {/* Footer */}
+          <footer className="px-4 py-2 flex items-center justify-between text-[10px] text-muted-foreground/50 font-mono">
+            <span>ApexHunter v2.4.1</span>
+            <span>All systems operational</span>
+          </footer>
+        </div>
       </div>
-
-      {/* Tab Content */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2 }}
-        >
-          {tabContent[activeTab]}
-        </motion.div>
-      </AnimatePresence>
-    </div>
+    </SidebarProvider>
   );
 };
 
