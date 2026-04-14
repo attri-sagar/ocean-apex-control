@@ -14,8 +14,8 @@ interface TaskDetailPanelProps {
   task: KanbanTask;
   columns: BoardColumn[];
   onClose: () => void;
-  onUpdate: (updated: KanbanTask) => void;
-  onDelete: (id: string) => void;
+  onUpdate: (updated: KanbanTask) => void | Promise<void>;
+  onDelete: (id: string) => void | Promise<void>;
 }
 
 export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDelete }: TaskDetailPanelProps) {
@@ -32,18 +32,21 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
 
   const assigneeColors = ["#0ea5e9", "#f59e0b", "#a855f7", "#ef4444", "#22c55e", "#f43f5e", "#06b6d4", "#8b5cf6"];
 
-  const handleSave = () => {
-    onUpdate({
-      ...task,
-      title: editTitle,
-      description: editDesc,
-      priority: editPriority,
-      columnId: editColumn,
-      dueDate: editDueDate || null,
-      subtasks,
-      assignees,
-    });
-    toast.success("Task updated");
+  const handleSave = async () => {
+    try {
+      await onUpdate({
+        ...task,
+        title: editTitle,
+        description: editDesc,
+        priority: editPriority,
+        columnId: editColumn,
+        dueDate: editDueDate || null,
+        subtasks,
+        assignees,
+      });
+    } catch {
+      /* Parent shows toast */
+    }
   };
 
   const toggleSubtask = (id: string) => {
@@ -220,7 +223,14 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => { onDelete(task.id); setConfirmDelete(false); }}>Delete</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                void Promise.resolve(onDelete(task.id)).then(() => setConfirmDelete(false));
+              }}
+            >
+              Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

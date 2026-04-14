@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,7 @@ interface NewTaskModalProps {
   open: boolean;
   onClose: () => void;
   columns: BoardColumn[];
-  onCreate: (task: KanbanTask) => void;
+  onCreate: (task: KanbanTask) => void | Promise<void>;
 }
 
 export default function NewTaskModal({ open, onClose, columns, onCreate }: NewTaskModalProps) {
@@ -21,31 +21,40 @@ export default function NewTaskModal({ open, onClose, columns, onCreate }: NewTa
   const [columnId, setColumnId] = useState(columns[0]?.id || "");
   const [dueDate, setDueDate] = useState("");
 
-  const handleCreate = () => {
+  useEffect(() => {
+    if (open) {
+      setColumnId(columns[0]?.id || "");
+    }
+  }, [open, columns]);
+
+  const handleCreate = async () => {
     if (!title.trim()) {
       toast.error("Title is required");
       return;
     }
-    onCreate({
-      id: `kt-${Date.now()}`,
-      title: title.trim(),
-      description: description.trim(),
-      columnId,
-      priority,
-      dueDate: dueDate || null,
-      position: 0,
-      createdAt: new Date().toISOString(),
-      subtasks: [],
-      assignees: [],
-      tags: [],
-    });
-    toast.success("Task created");
-    setTitle("");
-    setDescription("");
-    setPriority("medium");
-    setColumnId(columns[0]?.id || "");
-    setDueDate("");
-    onClose();
+    try {
+      await onCreate({
+        id: `kt-${Date.now()}`,
+        title: title.trim(),
+        description: description.trim(),
+        columnId,
+        priority,
+        dueDate: dueDate || null,
+        position: 0,
+        createdAt: new Date().toISOString(),
+        subtasks: [],
+        assignees: [],
+        tags: [],
+      });
+      setTitle("");
+      setDescription("");
+      setPriority("medium");
+      setColumnId(columns[0]?.id || "");
+      setDueDate("");
+      onClose();
+    } catch {
+      /* Parent shows error toast */
+    }
   };
 
   return (

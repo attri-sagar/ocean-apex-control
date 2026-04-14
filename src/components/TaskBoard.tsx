@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { Plus, Search, Filter } from "lucide-react";
@@ -6,18 +6,56 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { KanbanTask } from "@/data/mockData";
-import { boardColumns, kanbanTasks } from "@/data/kanbanData";
+import { boardColumns } from "@/data/kanbanData";
 import KanbanColumn from "@/components/kanban/KanbanColumn";
 import TaskDetailPanel from "@/components/kanban/TaskDetailPanel";
 import NewTaskModal from "@/components/kanban/NewTaskModal";
 import { toast } from "sonner";
+import {
+  listTasks,
+  createTaskApi,
+  moveTaskApi,
+  deleteTaskApi,
+  syncTaskDetailApi,
+} from "@/lib/aiTasksClient";
 
 const TaskBoard = () => {
-  const [tasks, setTasks] = useState<KanbanTask[]>(kanbanTasks);
+  const [tasks, setTasks] = useState<KanbanTask[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<KanbanTask | null>(null);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filterPriority, setFilterPriority] = useState<string>("all");
+
+  const refreshTasks = useCallback(async () => {
+    const list = await listTasks();
+    setTasks(list);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadState("loading");
+    listTasks()
+      .then((list) => {
+        if (!cancelled) {
+          setTasks(list);
+          setLoadError(null);
+          setLoadState("ready");
+        }
+      })
+      .catch((e: Error) => {
+        if (!cancelled) {
+          const msg = e.message || "Failed to load tasks";
+          setLoadError(msg);
+          setLoadState("error");
+          toast.error(msg);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Group tasks by column
   const tasksByColumn = useMemo(() => {
@@ -39,49 +77,130 @@ const TaskBoard = () => {
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter((t) => t.columnId === "col-done").length;
 
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
     const { source, destination, draggableId } = result;
 
-    setTasks((prev) => {
-      const updated = [...prev];
-      const taskIdx = updated.findIndex((t) => t.id === draggableId);
-      if (taskIdx === -1) return prev;
+    if (source.droppableId === destination.droppableId) {
+      setTasks((prev) => {
+        const updated = [...prev];
+        const taskIdx = updated.findIndex((t) => t.id === draggableId);
+        if (taskIdx === -1) return prev;
 
-      updated[taskIdx] = { ...updated[taskIdx], columnId: destination.droppableId, position: destination.index };
+        updated[taskIdx] = { ...updated[taskIdx], columnId: destination.droppableId, position: destination.index };
 
-      // Reorder positions within destination column
-      const colTasks = updated
-        .filter((t) => t.columnId === destination.droppableId && t.id !== draggableId)
-        .sort((a, b) => a.position - b.position);
-      colTasks.splice(destination.index, 0, updated[taskIdx]);
-      colTasks.forEach((t, i) => {
-        const idx = updated.findIndex((u) => u.id === t.id);
-        if (idx !== -1) updated[idx] = { ...updated[idx], position: i };
+        const colTasks = updated
+          .filter((t) => t.columnId === destination.droppableId && t.id !== draggableId)
+          .sort((a, b) => a.position - b.position);
+        colTasks.splice(destination.index, 0, updated[taskIdx]);
+        colTasks.forEach((t, i) => {
+          const idx = updated.findIndex((u) => u.id === t.id);
+          if (idx !== -1) updated[idx] = { ...updated[idx], position: i };
+        });
+
+        return updated;
       });
+      toast.success("Task moved");
+      return;
+    }
 
-      return updated;
-    });
-    toast.success("Task moved");
+    try {
+      await moveTaskApi(draggableId, destination.droppableId);
+      await refreshTasks();
+      toast.success("Task moved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to move task");
+    }
   };
 
-  const handleUpdateTask = (updated: KanbanTask) => {
-    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-    setSelectedTask(null);
+  const handleUpdateTask = async (updated: KanbanTask) => {
+    const prev = tasks.find((t) => t.id === updated.id);
+    if (!prev) {
+      setSelectedTask(null);
+      return;
+    }
+    try {
+      const merged = await syncTaskDetailApi(prev, updated);
+      setTasks((p) => p.map((t) => (t.id === merged.id ? merged : t)));
+      setSelectedTask(null);
+      toast.success("Task updated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to update task");
+    }
   };
 
-  const handleDeleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    setSelectedTask(null);
-    toast.success("Task deleted");
+  const handleDeleteTask = async (id: string) => {
+    try {
+      await deleteTaskApi(id);
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+      setSelectedTask(null);
+      toast.success("Task deleted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete task");
+    }
   };
 
-  const handleCreateTask = (task: KanbanTask) => {
-    setTasks((prev) => [task, ...prev]);
+  const handleCreateTask = async (task: KanbanTask) => {
+    try {
+      await createTaskApi({
+        title: task.title,
+        description: task.description,
+        columnId: task.columnId,
+        priority: task.priority,
+        dueDate: task.dueDate,
+      });
+      await refreshTasks();
+      setNewTaskOpen(false);
+      toast.success("Task created");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to create task");
+      throw e;
+    }
   };
 
-  // Mobile tab switcher
   const [mobileCol, setMobileCol] = useState(boardColumns[0].id);
+
+  if (loadState === "loading") {
+    return (
+      <div className="space-y-4 py-8 text-center text-sm text-muted-foreground">
+        Loading board…
+      </div>
+    );
+  }
+
+  if (loadState === "error") {
+    return (
+      <div className="space-y-4 py-8 text-center max-w-md mx-auto">
+        <p className="text-sm text-muted-foreground">Could not load tasks.</p>
+        {loadError && (
+          <p className="text-xs text-destructive/90 font-mono break-words px-2">{loadError}</p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Ensure the dev server is running and Postgres is up (<code className="text-[10px]">docker compose up -d</code>,{" "}
+          <code className="text-[10px]">DATABASE_URL</code> in <code className="text-[10px]">.env</code>).
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            void listTasks()
+              .then((list) => {
+                setTasks(list);
+                setLoadError(null);
+                setLoadState("ready");
+              })
+              .catch((e: Error) => {
+                const msg = e.message || "Failed to load tasks";
+                setLoadError(msg);
+                toast.error(msg);
+              });
+          }}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

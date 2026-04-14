@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ocean
+      POSTGRES_PASSWORD: ocean
+      POSTGRES_DB: ocean_apex
+    ports:
+      - "5432:5432"
+    volumes:
+      - ocean_apex_pgdata:/var/lib/postgresql/data
+
+volumes:
+  ocean_apex_pgdata:

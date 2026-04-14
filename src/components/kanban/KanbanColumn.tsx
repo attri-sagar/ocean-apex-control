@@ -18,11 +18,11 @@ export default function KanbanColumn({ column, tasks, onTaskClick }: KanbanColum
 
       {/* Header */}
       <div className="px-4 pt-3 pb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: column.color }} />
-          <h3 className="text-sm font-semibold text-foreground">{column.name}</h3>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: column.color }} />
+          <h3 className="text-sm font-semibold text-foreground truncate">{column.name}</h3>
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground bg-secondary/40 px-2 py-0.5 rounded-md">
+        <span className="text-[10px] font-mono text-muted-foreground bg-secondary/40 px-2 py-0.5 rounded-md shrink-0">
           {tasks.length}
         </span>
       </div>
