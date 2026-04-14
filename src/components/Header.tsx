@@ -1,15 +1,25 @@
 import { useState, useEffect } from "react";
-import { Search, Bell, Settings, Command, Skull } from "lucide-react";
+import { Search, Bell, Settings, Command, Skull, Sun, Moon, User, LogOut, Palette, HelpCircle, Shield } from "lucide-react";
 import { agents, notifications } from "@/data/mockData";
 import { motion, AnimatePresence } from "framer-motion";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import { useTheme } from "@/contexts/ThemeContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
   const activeAgent = agents.find((a) => a.status === "active") || agents[0];
   const unreadCount = notifications.filter((n) => !n.read).length;
   const [showNotifications, setShowNotifications] = useState(false);
   const [clock, setClock] = useState(new Date());
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const timer = setInterval(() => setClock(new Date()), 1000);
@@ -25,14 +35,12 @@ const Header = () => {
       animate={{ opacity: 1, y: 0 }}
       className="glass-card relative overflow-hidden"
     >
-      {/* Animated gradient border bottom */}
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent animate-gradient-x" style={{ backgroundSize: "200% 100%" }} />
       
       <div className="px-4 py-3 flex items-center justify-between gap-4">
-        {/* Left: Sidebar trigger + branding */}
+        {/* Left */}
         <div className="flex items-center gap-3">
           <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-          
           <div className="hidden md:flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center animate-pulse-glow">
               <Skull className="w-4 h-4 text-primary" />
@@ -44,7 +52,7 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Center: Search bar */}
+        {/* Center: Search */}
         <div className="flex-1 max-w-md mx-4">
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -59,7 +67,7 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Right: Clock + Status + Notifications + Settings */}
+        {/* Right */}
         <div className="flex items-center gap-3">
           {/* Clock */}
           <div className="hidden lg:flex flex-col items-end">
@@ -67,7 +75,7 @@ const Header = () => {
             <span className="text-[10px] text-muted-foreground">{dateStr}</span>
           </div>
 
-          {/* Active agent status */}
+          {/* Active agent */}
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/30">
             <span className="relative flex h-2 w-2">
               <span className="animate-pulse-dot absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
@@ -75,6 +83,15 @@ const Header = () => {
             </span>
             <span className="text-xs text-foreground font-medium">{activeAgent.emoji} {activeAgent.name}</span>
           </div>
+
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-all"
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          >
+            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
 
           {/* Notifications */}
           <div className="relative">
@@ -108,10 +125,7 @@ const Header = () => {
                   </div>
                   <div className="divider-glow my-1" />
                   {notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      className={`p-3 rounded-lg text-xs transition-colors hover:bg-secondary/30 cursor-pointer ${!n.read ? "bg-primary/5" : ""}`}
-                    >
+                    <div key={n.id} className={`p-3 rounded-lg text-xs transition-colors hover:bg-secondary/30 cursor-pointer ${!n.read ? "bg-primary/5" : ""}`}>
                       <div className="flex items-start gap-2">
                         {n.agentEmoji && <span className="text-sm">{n.agentEmoji}</span>}
                         <div className="flex-1 min-w-0">
@@ -128,15 +142,70 @@ const Header = () => {
             </AnimatePresence>
           </div>
 
-          {/* Settings */}
-          <button className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-all">
-            <Settings className="w-4 h-4" />
-          </button>
+          {/* Settings dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-all">
+                <Settings className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 glass-card border-border">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Settings</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={toggleTheme} className="text-xs cursor-pointer">
+                {theme === "dark" ? <Sun className="w-3.5 h-3.5 mr-2" /> : <Moon className="w-3.5 h-3.5 mr-2" />}
+                {theme === "dark" ? "Light Mode" : "Dark Mode"}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs cursor-pointer">
+                <Palette className="w-3.5 h-3.5 mr-2" />
+                Appearance
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs cursor-pointer">
+                <Bell className="w-3.5 h-3.5 mr-2" />
+                Notification Preferences
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs cursor-pointer">
+                <Shield className="w-3.5 h-3.5 mr-2" />
+                Security & Privacy
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-xs cursor-pointer">
+                <HelpCircle className="w-3.5 h-3.5 mr-2" />
+                Help & Support
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {/* User avatar */}
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary cursor-pointer hover:border-primary/40 transition-all">
-            AH
-          </div>
+          {/* Profile dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary cursor-pointer hover:border-primary/40 transition-all">
+                AH
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 glass-card border-border">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium text-foreground">Apex Admin</p>
+                  <p className="text-xs text-muted-foreground">admin@apexhunter.ai</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-xs cursor-pointer">
+                <User className="w-3.5 h-3.5 mr-2" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs cursor-pointer">
+                <Settings className="w-3.5 h-3.5 mr-2" />
+                Account Settings
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-xs cursor-pointer text-destructive">
+                <LogOut className="w-3.5 h-3.5 mr-2" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </motion.header>

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2, Plus, GripVertical, Calendar, ChevronDown } from "lucide-react";
+import { X, Trash2, Plus } from "lucide-react";
 import { KanbanTask, BoardColumn, Subtask } from "@/data/mockData";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -78,44 +77,22 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
 
   return (
     <>
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        <motion.div
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ type: "spring", damping: 25, stiffness: 250 }}
-          className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-md glass-card border-l border-border overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
+      {/* Main task detail dialog */}
+      <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <DialogContent className="glass-card border-border max-w-lg max-h-[85vh] overflow-y-auto p-0">
           {/* Header */}
-          <div className="sticky top-0 z-10 glass-card border-b border-border px-5 py-4 flex items-center justify-between">
+          <div className="sticky top-0 z-10 glass-card border-b border-border px-5 py-4 flex items-center justify-between rounded-t-lg">
             <span className="text-xs text-muted-foreground font-mono">{task.id.toUpperCase()}</span>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}>
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
           </div>
 
           <div className="p-5 space-y-5">
             {/* Title */}
             <div>
               <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Title</label>
-              <Input
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="bg-secondary/30 border-border text-sm font-semibold"
-              />
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="bg-secondary/30 border-border text-sm font-semibold" />
             </div>
 
             {/* Priority + Column */}
@@ -123,9 +100,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
               <div>
                 <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Priority</label>
                 <Select value={editPriority} onValueChange={(v) => setEditPriority(v as KanbanTask["priority"])}>
-                  <SelectTrigger className="bg-secondary/30 border-border text-xs h-9">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="bg-secondary/30 border-border text-xs h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="urgent">🔴 Urgent</SelectItem>
                     <SelectItem value="high">🟠 High</SelectItem>
@@ -137,9 +112,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
               <div>
                 <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Column</label>
                 <Select value={editColumn} onValueChange={setEditColumn}>
-                  <SelectTrigger className="bg-secondary/30 border-border text-xs h-9">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="bg-secondary/30 border-border text-xs h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {columns.map((col) => (
                       <SelectItem key={col.id} value={col.id}>
@@ -157,30 +130,18 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
             {/* Due date */}
             <div>
               <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Due Date</label>
-              <Input
-                type="date"
-                value={editDueDate}
-                onChange={(e) => setEditDueDate(e.target.value)}
-                className="bg-secondary/30 border-border text-xs h-9"
-              />
+              <Input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="bg-secondary/30 border-border text-xs h-9" />
             </div>
 
             {/* Description */}
             <div>
               <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Description</label>
-              <Textarea
-                value={editDesc}
-                onChange={(e) => setEditDesc(e.target.value)}
-                rows={4}
-                className="bg-secondary/30 border-border text-xs resize-none"
-              />
+              <Textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={4} className="bg-secondary/30 border-border text-xs resize-none" />
             </div>
 
             {/* Assignees */}
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 block">
-                Assignees ({assignees.length})
-              </label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 block">Assignees ({assignees.length})</label>
               <div className="space-y-1.5">
                 {assignees.map((a) => (
                   <div key={a.id} className="flex items-center justify-between glass-card-inner px-3 py-1.5 rounded-lg">
@@ -197,37 +158,23 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
                 ))}
               </div>
               <div className="flex gap-2 mt-2">
-                <Input
-                  placeholder="Add assignee..."
-                  value={newAssignee}
-                  onChange={(e) => setNewAssignee(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addAssignee()}
-                  className="bg-secondary/30 border-border text-xs h-8 flex-1"
-                />
-                <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={addAssignee}>
-                  <Plus className="w-3 h-3" />
-                </Button>
+                <Input placeholder="Add assignee..." value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addAssignee()} className="bg-secondary/30 border-border text-xs h-8 flex-1" />
+                <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={addAssignee}><Plus className="w-3 h-3" /></Button>
               </div>
             </div>
 
             {/* Subtasks */}
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 block">
-                Subtasks ({completedCount}/{subtasks.length})
-              </label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 block">Subtasks ({completedCount}/{subtasks.length})</label>
               {subtasks.length > 0 && (
                 <div className="h-1 rounded-full bg-secondary/50 overflow-hidden mb-3">
-                  <div className="h-full rounded-full bg-primary/70 transition-all" style={{ width: `${subtasks.length > 0 ? (completedCount / subtasks.length) * 100 : 0}%` }} />
+                  <div className="h-full rounded-full bg-primary/70 transition-all" style={{ width: `${(completedCount / subtasks.length) * 100}%` }} />
                 </div>
               )}
               <div className="space-y-1">
                 {subtasks.map((s) => (
                   <div key={s.id} className="flex items-center gap-2 glass-card-inner px-3 py-2 rounded-lg group/sub">
-                    <Checkbox
-                      checked={s.completed}
-                      onCheckedChange={() => toggleSubtask(s.id)}
-                      className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                    />
+                    <Checkbox checked={s.completed} onCheckedChange={() => toggleSubtask(s.id)} className="data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
                     <span className={`text-xs flex-1 ${s.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{s.title}</span>
                     <button onClick={() => deleteSubtask(s.id)} className="opacity-0 group-hover/sub:opacity-100 text-muted-foreground hover:text-destructive transition-all">
                       <X className="w-3 h-3" />
@@ -236,16 +183,8 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
                 ))}
               </div>
               <div className="flex gap-2 mt-2">
-                <Input
-                  placeholder="Add subtask..."
-                  value={newSubtask}
-                  onChange={(e) => setNewSubtask(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addSubtask()}
-                  className="bg-secondary/30 border-border text-xs h-8 flex-1"
-                />
-                <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={addSubtask}>
-                  <Plus className="w-3 h-3" />
-                </Button>
+                <Input placeholder="Add subtask..." value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addSubtask()} className="bg-secondary/30 border-border text-xs h-8 flex-1" />
+                <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={addSubtask}><Plus className="w-3 h-3" /></Button>
               </div>
             </div>
 
@@ -269,8 +208,8 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
             {/* Save */}
             <Button onClick={handleSave} className="w-full">Save Changes</Button>
           </div>
-        </motion.div>
-      </AnimatePresence>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation */}
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
