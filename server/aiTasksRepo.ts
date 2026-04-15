@@ -262,7 +262,6 @@ export async function createTask(params: {
       [params.id, params.agent_name, params.agent_emoji],
     );
     await logActivity(client, params.id, params.agent_name, params.agent_emoji, "created", "Task created.");
-    await logActivity(client, taskId, agent_name, agent_emoji, "updated", "Task fields updated.");
     await client.query("COMMIT");
   } catch (e) {
     await client.query("ROLLBACK");
