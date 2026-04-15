@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -9,18 +9,22 @@ import TaskBoard from "@/components/TaskBoard";
 import AILog from "@/components/AILog";
 import Council from "@/components/Council";
 import MeetingIntelligence from "@/components/MeetingIntelligence";
-
-const tabContent: Record<string, React.ReactNode> = {
-  command: <CommandDeck />,
-  agents: <AgentProfiles />,
-  tasks: <TaskBoard />,
-  log: <AILog />,
-  council: <Council />,
-  meetings: <MeetingIntelligence />,
-};
+import ThreatIntelFeed from "@/components/ThreatIntelFeed";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("command");
+  const tabs = useMemo(
+    () => ({
+      command: <CommandDeck />,
+      agents: <AgentProfiles />,
+      tasks: <TaskBoard />,
+      intel: <ThreatIntelFeed onOpenTaskBoard={() => setActiveTab("tasks")} />,
+      log: <AILog />,
+      council: <Council />,
+      meetings: <MeetingIntelligence />,
+    }),
+    [setActiveTab],
+  );
 
   return (
     <SidebarProvider>
@@ -46,7 +50,7 @@ const Index = () => {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
               >
-                {tabContent[activeTab]}
+                {tabs[activeTab]}
               </motion.div>
             </AnimatePresence>
           </main>

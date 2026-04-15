@@ -198,6 +198,7 @@ export async function createTask(params: {
   createdAt: string;
   agent_name: string;
   agent_emoji: string;
+  tags?: string[];
 }): Promise<KanbanTask> {
   const pool = getPool();
   const client = await pool.connect();
@@ -215,7 +216,7 @@ export async function createTask(params: {
         params.dueDate,
         params.position,
         params.createdAt,
-        JSON.stringify([]),
+        JSON.stringify(params.tags ?? []),
       ],
     );
     await client.query(
@@ -243,6 +244,7 @@ export async function updateTaskFields(
     columnId?: string;
     dueDate?: string | null;
     position?: number;
+    tags?: string[];
   },
   agent_name: string,
   agent_emoji: string,
@@ -266,6 +268,7 @@ export async function updateTaskFields(
       cur.rows[0].due_date === null || cur.rows[0].due_date === undefined
         ? null
         : String(cur.rows[0].due_date);
+    let tags: string[] = Array.isArray(cur.rows[0].tags) ? (cur.rows[0].tags as string[]) : [];
 
     if (updates.columnId !== undefined) {
       columnId = updates.columnId;
@@ -276,11 +279,12 @@ export async function updateTaskFields(
     if (updates.description !== undefined) description = updates.description;
     if (updates.priority !== undefined) priority = updates.priority;
     if (updates.dueDate !== undefined) dueDate = updates.dueDate;
+    if (updates.tags !== undefined) tags = updates.tags;
 
     await client.query(
-      `UPDATE tasks SET title = $2, description = $3, column_id = $4, priority = $5, due_date = $6, position = $7
+      `UPDATE tasks SET title = $2, description = $3, column_id = $4, priority = $5, due_date = $6, position = $7, tags = $8::jsonb
        WHERE id = $1`,
-      [taskId, title, description, columnId, priority, dueDate, position],
+      [taskId, title, description, columnId, priority, dueDate, position, JSON.stringify(tags)],
     );
 
     await client.query(

@@ -63,6 +63,19 @@ function priorityToApi(p: KanbanTask["priority"]): string {
   return p.charAt(0).toUpperCase() + p.slice(1);
 }
 
+/** Accepts optional tags array from API body; trims, caps length and count. */
+function normalizeTagsInput(v: unknown): string[] {
+  if (v === undefined || v === null) return [];
+  if (!Array.isArray(v)) return [];
+  const out: string[] = [];
+  for (const x of v) {
+    if (typeof x !== "string") continue;
+    const t = x.trim().slice(0, 64);
+    if (t) out.push(t);
+  }
+  return out.slice(0, 32);
+}
+
 function getWebhookSecret(): string {
   return process.env.CLAWBUDDY_WEBHOOK_SECRET ?? "dev-local-secret";
 }
@@ -183,6 +196,7 @@ export async function handleAiTasksPost(
         const id = `kt-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
         const position = await repo.nextPositionForColumn(getPool(), colKey);
         const createdAt = new Date().toISOString();
+        const tags = normalizeTagsInput(b.tags);
         const task = await repo.createTask({
           id,
           title,
@@ -194,6 +208,7 @@ export async function handleAiTasksPost(
           createdAt,
           agent_name,
           agent_emoji,
+          tags,
         });
         return { status: 200, body: { task: await apiTaskWithMeta(task) } };
       }
@@ -245,6 +260,7 @@ export async function handleAiTasksPost(
           priority?: KanbanTask["priority"];
           columnId?: string;
           dueDate?: string | null;
+          tags?: string[];
         } = {};
 
         if (b.column !== undefined && b.column !== null && b.column !== "") {
@@ -266,6 +282,9 @@ export async function handleAiTasksPost(
           } else if (typeof b.due_date === "string") {
             updates.dueDate = b.due_date;
           }
+        }
+        if (b.tags !== undefined) {
+          updates.tags = normalizeTagsInput(b.tags);
         }
 
         const updated = await repo.updateTaskFields(taskId, updates, agent_name, agent_emoji);

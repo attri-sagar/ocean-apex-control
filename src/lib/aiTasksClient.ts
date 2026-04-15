@@ -91,8 +91,9 @@ export async function createTaskApi(params: {
   columnId: string;
   priority: KanbanTask["priority"];
   dueDate: string | null;
+  tags?: string[];
 }): Promise<KanbanTask> {
-  const data = await postAiTasks({
+  const body: Record<string, unknown> = {
     request_type: "task",
     action: "create",
     title: params.title,
@@ -100,7 +101,9 @@ export async function createTaskApi(params: {
     column: columnIdToApiColumn(params.columnId),
     priority: params.priority.charAt(0).toUpperCase() + params.priority.slice(1),
     due_date: params.dueDate ?? undefined,
-  });
+  };
+  if (params.tags !== undefined) body.tags = params.tags;
+  const data = await postAiTasks(body);
   const task = data.task;
   if (!task || typeof task !== "object") throw new Error("Invalid create response");
   return apiTaskToKanban(task as Record<string, unknown>);
@@ -112,6 +115,7 @@ export async function updateTaskFieldsApi(taskId: string, fields: {
   priority?: KanbanTask["priority"];
   columnId?: string;
   dueDate?: string | null;
+  tags?: string[];
 }): Promise<KanbanTask> {
   const body: Record<string, unknown> = {
     request_type: "task",
@@ -125,6 +129,7 @@ export async function updateTaskFieldsApi(taskId: string, fields: {
   }
   if (fields.columnId !== undefined) body.column = columnIdToApiColumn(fields.columnId);
   if (fields.dueDate !== undefined) body.due_date = fields.dueDate === null ? null : fields.dueDate;
+  if (fields.tags !== undefined) body.tags = fields.tags;
   const data = await postAiTasks(body);
   const task = data.task;
   if (!task || typeof task !== "object") throw new Error("Invalid update response");
@@ -197,6 +202,7 @@ export async function syncTaskDetailApi(oldTask: KanbanTask, newTask: KanbanTask
     priority: newTask.priority,
     columnId: newTask.columnId,
     dueDate: newTask.dueDate,
+    tags: newTask.tags,
   });
 
   const oldNames = oldTask.assignees.map((a) => a.displayName);

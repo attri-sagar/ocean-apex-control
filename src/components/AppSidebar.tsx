@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, Kanban, ScrollText, MessagesSquare, CalendarCheck,
-  ChevronLeft, Skull, Zap,
+  ChevronLeft, Skull, Zap, Rss,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -21,6 +21,7 @@ const navItems = [
   { id: "command", label: "Command Deck", icon: LayoutDashboard },
   { id: "agents", label: "Agents", icon: Users },
   { id: "tasks", label: "Task Board", icon: Kanban },
+  { id: "intel", label: "Threat Intel", icon: Rss },
   { id: "log", label: "AI Log", icon: ScrollText },
   { id: "council", label: "Council", icon: MessagesSquare },
   { id: "meetings", label: "Meetings", icon: CalendarCheck },
