@@ -129,6 +129,7 @@ function toApiTask(
     tags: task.tags,
     subtasks: task.subtasks,
     assignees: task.assignees,
+    activities: task.activities,
     agent_name: meta?.agent_name,
     agent_emoji: meta?.agent_emoji,
   };
@@ -324,7 +325,7 @@ export async function handleAiTasksPost(
       const names = namesRaw.map((n) => n.trim()).filter(Boolean);
 
       if (action === "assign") {
-        const updated = await repo.assignNames(taskId, names, colorForName);
+        const updated = await repo.assignNames(taskId, names, colorForName, agent_name, agent_emoji);
         if (!updated) {
           return { status: 404, body: { error: "not_found", message: "Task not found" } };
         }
@@ -335,7 +336,7 @@ export async function handleAiTasksPost(
       }
 
       if (action === "unassign") {
-        const updated = await repo.unassignNames(taskId, names);
+        const updated = await repo.unassignNames(taskId, names, agent_name, agent_emoji);
         if (!updated) {
           return { status: 404, body: { error: "not_found", message: "Task not found" } };
         }
@@ -365,7 +366,7 @@ export async function handleAiTasksPost(
           title,
           completed,
         };
-        const updated = await repo.createSubtask(taskId, sub);
+        const updated = await repo.createSubtask(taskId, sub, agent_name, agent_emoji);
         if (!updated) {
           return { status: 404, body: { error: "not_found", message: "Task not found" } };
         }
@@ -380,7 +381,7 @@ export async function handleAiTasksPost(
         }
         await repo.recordAgentMeta(row.taskId, agent_name, agent_emoji);
         const completed = b.completed !== undefined ? Boolean(b.completed) : row.completed;
-        const updated = await repo.updateSubtask(subtaskId, completed);
+        const updated = await repo.updateSubtask(subtaskId, completed, agent_name, agent_emoji);
         if (!updated) {
           return { status: 404, body: { error: "not_found", message: "Subtask not found" } };
         }
@@ -395,7 +396,7 @@ export async function handleAiTasksPost(
           return { status: 404, body: { error: "not_found", message: "Subtask not found" } };
         }
         await repo.recordAgentMeta(row.taskId, agent_name, agent_emoji);
-        const updated = await repo.deleteSubtask(subtaskId);
+        const updated = await repo.deleteSubtask(subtaskId, agent_name, agent_emoji);
         if (!updated) {
           return { status: 404, body: { error: "not_found", message: "Subtask not found" } };
         }

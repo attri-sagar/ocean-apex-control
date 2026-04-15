@@ -1,4 +1,4 @@
-import type { KanbanTask, Subtask, TaskAssignee } from "../src/data/mockData.ts";
+import type { KanbanTask, Subtask, TaskAssignee, TaskActivity } from "../src/data/mockData.ts";
 import type { Pool, PoolClient } from "pg";
 import { getPool } from "./db/pool.ts";
 
@@ -24,6 +24,7 @@ function rowToTask(
   },
   subtasks: Subtask[],
   assignees: TaskAssignee[],
+  activities: TaskActivity[] = [],
 ): KanbanTask {
   const createdAt =
     row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at);
@@ -40,6 +41,7 @@ function rowToTask(
     subtasks,
     assignees,
     tags,
+    activities,
   };
 }
 
@@ -71,7 +73,7 @@ async function loadTaskBundle(client: Pool | PoolClient, taskId: string): Promis
   if (tr.rows.length === 0) return null;
   const row = tr.rows[0] as Record<string, unknown>;
 
-  const [subs, asg] = await Promise.all([
+  const [subs, asg, acts] = await Promise.all([
     client.query(
       `SELECT id, task_id, title, completed FROM subtasks WHERE task_id = $1 ORDER BY id`,
       [taskId],
@@ -80,6 +82,7 @@ async function loadTaskBundle(client: Pool | PoolClient, taskId: string): Promis
       `SELECT id, task_id, display_name, color FROM assignees WHERE task_id = $1 ORDER BY id`,
       [taskId],
     ),
+    client.query(`SELECT id, task_id, agent_name, agent_emoji, activity_type, description, created_at FROM task_activity WHERE task_id = $1 ORDER BY created_at DESC`, [taskId])
   ]);
 
   const subtasks: Subtask[] = subs.rows.map((s) => ({
@@ -87,6 +90,15 @@ async function loadTaskBundle(client: Pool | PoolClient, taskId: string): Promis
     taskId: String(s.task_id),
     title: String(s.title),
     completed: Boolean(s.completed),
+  }));
+  const activities: TaskActivity[] = acts.rows.map((a) => ({
+    id: String(a.id),
+    taskId: String(a.task_id),
+    agentName: String(a.agent_name),
+    agentEmoji: String(a.agent_emoji),
+    activityType: String(a.activity_type),
+    description: String(a.description),
+    createdAt: (a.created_at instanceof Date ? a.created_at.toISOString() : String(a.created_at))
   }));
   const assignees: TaskAssignee[] = asg.rows.map((a) => ({
     id: String(a.id),
@@ -109,6 +121,15 @@ async function loadTaskBundle(client: Pool | PoolClient, taskId: string): Promis
     },
     subtasks,
     assignees,
+    activities
+  );
+}
+
+export async function logActivity(pool: any, taskId: string, agent_name: string, agent_emoji: string, activity_type: string, description: string) {
+  const id = `act-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  await pool.query(
+    'INSERT INTO task_activity (id, task_id, agent_name, agent_emoji, activity_type, description) VALUES ($1, $2, $3, $4, $5, $6)',
+    [id, taskId, agent_name, agent_emoji, activity_type, description]
   );
 }
 
@@ -130,7 +151,7 @@ export async function listTasks(columnId: string | null): Promise<KanbanTask[]> 
   if (tr.rows.length === 0) return [];
 
   const ids = tr.rows.map((r) => String((r as { id: string }).id));
-  const [subs, asg] = await Promise.all([
+  const [subs, asg, acts] = await Promise.all([
     pool.query(
       `SELECT id, task_id, title, completed FROM subtasks WHERE task_id = ANY($1::text[]) ORDER BY task_id, id`,
       [ids],
@@ -139,6 +160,7 @@ export async function listTasks(columnId: string | null): Promise<KanbanTask[]> 
       `SELECT id, task_id, display_name, color FROM assignees WHERE task_id = ANY($1::text[]) ORDER BY task_id, id`,
       [ids],
     ),
+    pool.query(`SELECT id, task_id, agent_name, agent_emoji, activity_type, description, created_at FROM task_activity WHERE task_id = ANY($1::text[]) ORDER BY created_at DESC`, [ids])
   ]);
 
   const subsByTask = new Map<string, Subtask[]>();
@@ -152,6 +174,21 @@ export async function listTasks(columnId: string | null): Promise<KanbanTask[]> 
       completed: Boolean(s.completed),
     });
     subsByTask.set(tid, list);
+  }
+  const actsByTask = new Map<string, TaskActivity[]>();
+  for (const a of acts.rows) {
+    const tid = String(a.task_id);
+    const list = actsByTask.get(tid) ?? [];
+    list.push({
+      id: String(a.id),
+      taskId: tid,
+      agentName: String(a.agent_name),
+      agentEmoji: String(a.agent_emoji),
+      activityType: String(a.activity_type),
+      description: String(a.description),
+      createdAt: (a.created_at instanceof Date ? a.created_at.toISOString() : String(a.created_at))
+    });
+    actsByTask.set(tid, list);
   }
   const asgByTask = new Map<string, TaskAssignee[]>();
   for (const a of asg.rows) {
@@ -183,6 +220,7 @@ export async function listTasks(columnId: string | null): Promise<KanbanTask[]> 
       },
       subsByTask.get(id) ?? [],
       asgByTask.get(id) ?? [],
+      actsByTask.get(id) ?? [],
     );
   });
 }
@@ -223,6 +261,8 @@ export async function createTask(params: {
       `INSERT INTO task_agent_meta (task_id, agent_name, agent_emoji) VALUES ($1, $2, $3)`,
       [params.id, params.agent_name, params.agent_emoji],
     );
+    await logActivity(client, params.id, params.agent_name, params.agent_emoji, "created", "Task created.");
+    await logActivity(client, taskId, agent_name, agent_emoji, "updated", "Task fields updated.");
     await client.query("COMMIT");
   } catch (e) {
     await client.query("ROLLBACK");
@@ -321,7 +361,7 @@ export async function recordAgentMeta(taskId: string, agent_name: string, agent_
   );
 }
 
-export async function assignNames(taskId: string, names: string[], colorForName: (name: string) => string): Promise<KanbanTask | null> {
+export async function assignNames(taskId: string, names: string[], colorForName: (name: string) => string, agent_name: string, agent_emoji: string): Promise<KanbanTask | null> {
   const pool = getPool();
   const task = await findTask(taskId);
   if (!task) return null;
@@ -338,11 +378,12 @@ export async function assignNames(taskId: string, names: string[], colorForName:
       color,
     ]);
     assignees.push({ id, taskId: task.id, displayName, color });
+    await logActivity(pool, taskId, agent_name, agent_emoji, "assign", `Assigned ${displayName}`);
   }
   return findTask(taskId);
 }
 
-export async function unassignNames(taskId: string, names: string[]): Promise<KanbanTask | null> {
+export async function unassignNames(taskId: string, names: string[], agent_name: string, agent_emoji: string): Promise<KanbanTask | null> {
   const pool = getPool();
   const lower = new Set(names.map((n) => n.toLowerCase()));
   const task = await findTask(taskId);
@@ -351,34 +392,42 @@ export async function unassignNames(taskId: string, names: string[]): Promise<Ka
   const removeIds = task.assignees.filter((a) => lower.has(a.displayName.toLowerCase())).map((a) => a.id);
   if (removeIds.length === 0) return task;
   await pool.query(`DELETE FROM assignees WHERE id = ANY($1::text[])`, [removeIds]);
+  for (const n of names) {
+    await logActivity(pool, taskId, agent_name, agent_emoji, "unassign", `Unassigned ${n}`);
+  }
   return findTask(taskId);
 }
 
 export async function createSubtask(
   taskId: string,
   sub: Subtask,
+  agent_name: string,
+  agent_emoji: string
 ): Promise<KanbanTask | null> {
   const pool = getPool();
   await pool.query(
     `INSERT INTO subtasks (id, task_id, title, completed) VALUES ($1, $2, $3, $4)`,
     [sub.id, sub.taskId, sub.title, sub.completed],
   );
+  await logActivity(pool, taskId, agent_name, agent_emoji, "subtask_add", `Added subtask: ${sub.title}`);
   return findTask(taskId);
 }
 
-export async function updateSubtask(subtaskId: string, completed: boolean): Promise<KanbanTask | null> {
+export async function updateSubtask(subtaskId: string, completed: boolean, agent_name: string, agent_emoji: string): Promise<KanbanTask | null> {
   const pool = getPool();
   const r = await findSubtaskRow(subtaskId);
   if (!r) return null;
   await pool.query(`UPDATE subtasks SET completed = $2 WHERE id = $1`, [subtaskId, completed]);
+  await logActivity(pool, r.taskId, agent_name, agent_emoji, "subtask_update", `Marked subtask as ${completed ? "completed" : "incomplete"}`);
   return findTask(r.taskId);
 }
 
-export async function deleteSubtask(subtaskId: string): Promise<KanbanTask | null> {
+export async function deleteSubtask(subtaskId: string, agent_name: string, agent_emoji: string): Promise<KanbanTask | null> {
   const pool = getPool();
   const r = await findSubtaskRow(subtaskId);
   if (!r) return null;
   await pool.query(`DELETE FROM subtasks WHERE id = $1`, [subtaskId]);
+  await logActivity(pool, r.taskId, agent_name, agent_emoji, "subtask_delete", `Deleted subtask`);
   return findTask(r.taskId);
 }
 

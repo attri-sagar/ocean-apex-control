@@ -70,6 +70,7 @@ export function apiTaskToKanban(raw: Record<string, unknown>): KanbanTask {
     subtasks: Array.isArray(raw.subtasks) ? (raw.subtasks as KanbanTask["subtasks"]) : [],
     assignees: Array.isArray(raw.assignees) ? (raw.assignees as KanbanTask["assignees"]) : [],
     tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
+    activities: Array.isArray(raw.activities) ? (raw.activities as any[]) : [],
   };
 }
 

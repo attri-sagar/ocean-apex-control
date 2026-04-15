@@ -29,6 +29,7 @@ export interface Task {
   createdAt: string;
   dueDate: string;
   tags: string[];
+  activities?: TaskActivity[];
 }
 
 // === KANBAN BOARD TYPES ===
@@ -51,6 +52,16 @@ export interface TaskAssignee {
   taskId: string;
   displayName: string;
   color: string;
+}
+
+export interface TaskActivity {
+  id: string;
+  taskId: string;
+  agentName: string;
+  agentEmoji: string;
+  activityType: string;
+  description: string;
+  createdAt: string;
 }
 
 export interface KanbanTask {

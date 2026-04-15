@@ -208,6 +208,31 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
               Created {new Date(task.createdAt).toLocaleDateString()}
             </div>
 
+            
+            {/* Task Summary / Activity Log */}
+            <div className="pt-2 border-t border-border">
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 block flex items-center gap-2">
+                Task Summary
+              </label>
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                {(task.activities || []).map((act: any) => (
+                  <div key={act.id} className="text-xs flex gap-2 items-start bg-secondary/20 p-2 rounded-md">
+                    <span className="shrink-0">{act.agentEmoji}</span>
+                    <div className="flex-1">
+                      <span className="font-semibold text-foreground/80">{act.agentName}</span>
+                      <span className="text-muted-foreground ml-1">{act.description}</span>
+                      <div className="text-[9px] text-muted-foreground/60 mt-0.5">
+                        {new Date(act.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {(!task.activities || task.activities.length === 0) && (
+                  <div className="text-xs text-muted-foreground italic">No activity recorded yet.</div>
+                )}
+              </div>
+            </div>
+
             {/* Save */}
             <Button onClick={handleSave} className="w-full">Save Changes</Button>
           </div>
