@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -13,7 +13,10 @@ import ThreatIntelFeed from "@/components/ThreatIntelFeed";
 import IntegrationGuide from "@/components/IntegrationGuide";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState("command");
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem("apex_active_tab") || "command");
+  useEffect(() => {
+    localStorage.setItem("apex_active_tab", activeTab);
+  }, [activeTab]);
   const tabs = useMemo(
     () => ({
       command: <CommandDeck />,

@@ -52,7 +52,14 @@ const TaskBoard = () => {
           toast.error(msg);
         }
       });
+    
+    const interval = setInterval(() => {
+      listTasks().then((list) => {
+        if (!cancelled) setTasks(list);
+      }).catch(() => {});
+    }, 3000);
     return () => {
+      clearInterval(interval);
       cancelled = true;
     };
   }, []);
