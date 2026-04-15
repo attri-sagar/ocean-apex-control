@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Rss, RefreshCw, Crosshair, ExternalLink } from "lucide-react";
+import { Rss, RefreshCw, Crosshair, ExternalLink, Settings, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -11,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { fetchRssFeeds, fetchRssItems, type RssItem } from "@/lib/rssClient";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { fetchRssFeeds, fetchRssItems, addRssFeed, removeRssFeed, type RssItem, type RssConfiguredFeed } from "@/lib/rssClient";
 import { createTaskApi } from "@/lib/aiTasksClient";
 import type { KanbanTask } from "@/data/mockData";
 
@@ -49,13 +52,18 @@ interface ThreatIntelFeedProps {
 }
 
 export default function ThreatIntelFeed({ onOpenTaskBoard }: ThreatIntelFeedProps) {
-  const [feeds, setFeeds] = useState<{ url: string; label: string }[]>([]);
+  const [feeds, setFeeds] = useState<RssConfiguredFeed[]>([]);
   const [feedKey, setFeedKey] = useState<string>(ALL_FEEDS);
   const [items, setItems] = useState<RssItem[]>([]);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [priority, setPriority] = useState<KanbanTask["priority"]>("high");
   const [creatingId, setCreatingId] = useState<string | null>(null);
+
+  // Settings Modal State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [newUrl, setNewUrl] = useState("");
+  const [newLabel, setNewLabel] = useState("");
 
   const loadFeeds = useCallback(async () => {
     const list = await fetchRssFeeds();
@@ -109,6 +117,32 @@ export default function ThreatIntelFeed({ onOpenTaskBoard }: ThreatIntelFeedProp
     }
   };
 
+  const handleAddFeed = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUrl.trim()) return;
+    try {
+      await addRssFeed(newUrl.trim(), newLabel.trim());
+      toast.success("Feed added");
+      setNewUrl("");
+      setNewLabel("");
+      await loadFeeds();
+      loadItems(true);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add feed");
+    }
+  };
+
+  const handleDeleteFeed = async (id: string) => {
+    try {
+      await removeRssFeed(id);
+      toast.success("Feed removed");
+      await loadFeeds();
+      loadItems(true);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove feed");
+    }
+  };
+
   return (
     <div className="space-y-5 max-w-5xl mx-auto">
       <motion.div
@@ -153,6 +187,73 @@ export default function ThreatIntelFeed({ onOpenTaskBoard }: ThreatIntelFeedProp
             <RefreshCw className={`w-3.5 h-3.5 ${loadState === "loading" ? "animate-spin" : ""}`} />
             Refresh
           </Button>
+
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                <Settings className="w-3.5 h-3.5" />
+                Settings
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-md border-border/50">
+              <DialogHeader>
+                <DialogTitle>RSS Feed Settings</DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <form onSubmit={handleAddFeed} className="flex flex-col gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Feed URL</Label>
+                    <Input 
+                      placeholder="https://example.com/feed.xml" 
+                      value={newUrl} 
+                      onChange={(e) => setNewUrl(e.target.value)}
+                      required 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Label (optional)</Label>
+                    <Input 
+                      placeholder="e.g. Krebs" 
+                      value={newLabel} 
+                      onChange={(e) => setNewLabel(e.target.value)} 
+                    />
+                  </div>
+                  <Button type="submit" className="w-full gap-2">
+                    <Plus className="w-4 h-4" /> Add Feed
+                  </Button>
+                </form>
+
+                <div className="mt-6">
+                  <Label className="text-xs text-muted-foreground mb-2 block">Configured Feeds</Label>
+                  <ScrollArea className="h-48 rounded-md border border-border/50">
+                    {feeds.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">No feeds configured.</div>
+                    ) : (
+                      <div className="divide-y divide-border/50">
+                        {feeds.map((f) => (
+                          <div key={f.url} className="flex items-center justify-between p-3 gap-2 hover:bg-white/5 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground truncate">{f.label}</p>
+                              <p className="text-xs text-muted-foreground truncate" title={f.url}>{f.url}</p>
+                            </div>
+                            {f.id ? (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/20" onClick={() => handleDeleteFeed(f.id!)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground uppercase px-2 py-1 bg-white/5 rounded-sm">.env</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
         </div>
       </motion.div>
 
@@ -180,12 +281,7 @@ export default function ThreatIntelFeed({ onOpenTaskBoard }: ThreatIntelFeedProp
       {feeds.length === 0 && (
         <div className="glass-card-inner p-6 text-sm text-muted-foreground">
           <p className="font-medium text-foreground mb-2">No RSS feeds configured</p>
-          <p>
-            Set <code className="text-xs bg-secondary/80 px-1.5 py-0.5 rounded">RSS_FEED_URLS</code> or{" "}
-            <code className="text-xs bg-secondary/80 px-1.5 py-0.5 rounded">RSS_FEEDS_JSON</code> in{" "}
-            <code className="text-xs bg-secondary/80 px-1.5 py-0.5 rounded">.env</code> (see{" "}
-            <code className="text-xs bg-secondary/80 px-1.5 py-0.5 rounded">.env.example</code>), then restart the dev server.
-          </p>
+          <p>Click the <strong>Settings</strong> button above to add an RSS feed URL.</p>
         </div>
       )}
 

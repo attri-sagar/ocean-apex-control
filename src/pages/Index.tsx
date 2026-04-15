@@ -4,12 +4,13 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import Header from "@/components/Header";
 import CommandDeck from "@/components/CommandDeck";
-import AgentProfiles from "@/components/AgentProfiles";
+import AgentProfiles from "@/components/AgentProfilesWrapper";
 import TaskBoard from "@/components/TaskBoard";
 import AILog from "@/components/AILog";
 import Council from "@/components/Council";
 import MeetingIntelligence from "@/components/MeetingIntelligence";
 import ThreatIntelFeed from "@/components/ThreatIntelFeed";
+import IntegrationGuide from "@/components/IntegrationGuide";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("command");
@@ -22,6 +23,7 @@ const Index = () => {
       log: <AILog />,
       council: <Council />,
       meetings: <MeetingIntelligence />,
+      "api-docs": <IntegrationGuide />,
     }),
     [setActiveTab],
   );

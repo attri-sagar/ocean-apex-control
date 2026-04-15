@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Bell, Settings, Command, Skull, Sun, Moon, User, LogOut, Palette, HelpCircle, Shield } from "lucide-react";
-import { agents, notifications } from "@/data/mockData";
+import { notifications } from "@/data/mockData";
+import { useAgents } from "@/contexts/AgentsContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const Header = () => {
-  const activeAgent = agents.find((a) => a.status === "active") || agents[0];
+  const { activeAgent } = useAgents();
   const unreadCount = notifications.filter((n) => !n.read).length;
   const [showNotifications, setShowNotifications] = useState(false);
   const [clock, setClock] = useState(new Date());
@@ -76,13 +77,23 @@ const Header = () => {
           </div>
 
           {/* Active agent */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/30">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-pulse-dot absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-            </span>
-            <span className="text-xs text-foreground font-medium">{activeAgent.emoji} {activeAgent.name}</span>
-          </div>
+          {activeAgent && (
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/30">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-pulse-dot absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+              </span>
+              <span className="text-xs text-foreground font-medium">{activeAgent.emoji} {activeAgent.name}</span>
+            </div>
+          )}
+          {!activeAgent && (
+             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/30">
+               <span className="relative flex h-2 w-2">
+                 <span className="relative inline-flex rounded-full h-2 w-2 bg-muted-foreground" />
+               </span>
+               <span className="text-xs text-muted-foreground font-medium">No active agents</span>
+             </div>
+          )}
 
           {/* Theme toggle */}
           <button
@@ -124,6 +135,9 @@ const Header = () => {
                     <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">{unreadCount} new</Badge>
                   </div>
                   <div className="divider-glow my-1" />
+                  {notifications.length === 0 && (
+                     <div className="p-3 text-xs text-muted-foreground text-center">No notifications</div>
+                  )}
                   {notifications.map((n) => (
                     <div key={n.id} className={`p-3 rounded-lg text-xs transition-colors hover:bg-secondary/30 cursor-pointer ${!n.read ? "bg-primary/5" : ""}`}>
                       <div className="flex items-start gap-2">

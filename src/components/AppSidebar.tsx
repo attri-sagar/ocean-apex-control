@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, Kanban, ScrollText, MessagesSquare, CalendarCheck,
-  ChevronLeft, Skull, Zap, Rss,
+  ChevronLeft, Skull, Zap, Rss, Code,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -15,7 +15,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { agents } from "@/data/mockData";
+import { useAgents } from "@/contexts/AgentsContext";
 
 const navItems = [
   { id: "command", label: "Command Deck", icon: LayoutDashboard },
@@ -25,6 +25,7 @@ const navItems = [
   { id: "log", label: "AI Log", icon: ScrollText },
   { id: "council", label: "Council", icon: MessagesSquare },
   { id: "meetings", label: "Meetings", icon: CalendarCheck },
+  { id: "api-docs", label: "API & Integration", icon: Code },
 ];
 
 interface AppSidebarProps {
@@ -35,6 +36,7 @@ interface AppSidebarProps {
 export function AppSidebar({ activeTab, onTabChange }: AppSidebarProps) {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
+  const { agents } = useAgents();
 
   const activeAgents = agents.filter((a) => a.status === "active");
 

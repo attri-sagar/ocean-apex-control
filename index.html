@@ -4,15 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ApexHunter — AI Agent Command Center</title>
-    <meta name="description" content="Mission control for your AI workforce. Monitor agents, tasks, and meetings in real-time." />
-    <meta property="og:title" content="ApexHunter — AI Agent Command Center" />
-    <meta property="og:description" content="Mission control for your AI workforce." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="description" content="Mission control for your AI workforce." />
   </head>
-
   <body>
     <div id="root"></div>
+    <div id="error-log" style="color: red; position: fixed; top: 0; left: 0; z-index: 9999; background: black; padding: 20px;"></div>
+    <script>
+      window.onerror = function(msg, src, lineno, colno, error) {
+        document.getElementById("error-log").innerHTML += "<p>" + msg + "</p>";
+      };
+      window.addEventListener("unhandledrejection", function(event) {
+        document.getElementById("error-log").innerHTML += "<p>Promise: " + event.reason + "</p>";
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

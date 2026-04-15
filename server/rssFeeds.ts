@@ -1,7 +1,9 @@
 import Parser from "rss-parser";
 import type { IncomingMessage } from "node:http";
+import { getPool } from "./db/pool.ts";
 
 export interface ConfiguredFeed {
+  id?: string;
   url: string;
   label: string;
 }
@@ -58,36 +60,59 @@ function normalizeUrlKey(url: string): string {
   }
 }
 
-export function loadConfiguredFeeds(): ConfiguredFeed[] {
+export async function loadConfiguredFeeds(): Promise<ConfiguredFeed[]> {
+  const out: ConfiguredFeed[] = [];
+  const envUrls: ConfiguredFeed[] = [];
+
+  // Parse .env
   const json = process.env.RSS_FEEDS_JSON?.trim();
   if (json) {
     try {
       const parsed = JSON.parse(json) as unknown;
       if (Array.isArray(parsed)) {
-        const out: ConfiguredFeed[] = [];
         for (const row of parsed) {
           if (row && typeof row === "object" && "url" in row && typeof (row as { url: unknown }).url === "string") {
             const url = String((row as { url: string }).url).trim();
             const labelRaw = (row as { label?: unknown }).label;
-            const label =
-              typeof labelRaw === "string" && labelRaw.trim() ? labelRaw.trim() : hostnameFromUrl(url);
-            if (isAllowedFeedUrl(url)) out.push({ url, label });
+            const label = typeof labelRaw === "string" && labelRaw.trim() ? labelRaw.trim() : hostnameFromUrl(url);
+            if (isAllowedFeedUrl(url)) envUrls.push({ url, label });
           }
         }
-        if (out.length > 0) return out;
       }
-    } catch {
-      /* fall through */
-    }
+    } catch { /* fall through */ }
   }
   const raw = process.env.RSS_FEED_URLS ?? "";
   const urls = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  return urls.filter(isAllowedFeedUrl).map((url) => ({ url, label: hostnameFromUrl(url) }));
+  urls.filter(isAllowedFeedUrl).forEach((url) => {
+    envUrls.push({ url, label: hostnameFromUrl(url) });
+  });
+
+  // DB feeds
+  const pool = getPool();
+  try {
+    const res = await pool.query("SELECT id, url, label FROM rss_feeds ORDER BY created_at ASC");
+    for (const row of res.rows) {
+      if (isAllowedFeedUrl(row.url)) {
+        out.push({ id: row.id, url: row.url, label: row.label });
+      }
+    }
+  } catch (e) {
+    console.error("Failed to load RSS feeds from DB:", e);
+  }
+
+  // Merge (DB overrides env)
+  for (const envF of envUrls) {
+    if (!out.find(f => normalizeUrlKey(f.url) === normalizeUrlKey(envF.url))) {
+      out.push(envF);
+    }
+  }
+  return out;
 }
 
-export function resolveAllowedFeed(feedUrl: string): ConfiguredFeed | null {
+export async function resolveAllowedFeed(feedUrl: string): Promise<ConfiguredFeed | null> {
   const key = normalizeUrlKey(feedUrl);
-  for (const f of loadConfiguredFeeds()) {
+  const feeds = await loadConfiguredFeeds();
+  for (const f of feeds) {
     if (normalizeUrlKey(f.url) === key) return f;
   }
   return null;
@@ -149,17 +174,33 @@ function pubDateMs(pubDate: string | null): number {
 }
 
 export async function getMergedItems(limit: number, bypassCache = false): Promise<RssItemJson[]> {
-  const feeds = loadConfiguredFeeds();
+  const feeds = await loadConfiguredFeeds();
   if (feeds.length === 0) return [];
-  const batches = await Promise.all(feeds.map((f) => getItemsForFeed(f, bypassCache)));
+  const batches = await Promise.all(feeds.map((f) => getItemsForFeed(f, bypassCache).catch(e => {
+      console.error(`Failed to fetch feed ${f.url}`, e);
+      return [];
+  })));
   const merged = batches.flat();
   merged.sort((a, b) => pubDateMs(b.pubDate) - pubDateMs(a.pubDate));
   return merged.slice(0, limit);
 }
 
+// Minimal body parser
+async function parseJsonBody(req: IncomingMessage): Promise<any> {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", chunk => { body += chunk.toString(); });
+    req.on("end", () => {
+      try { resolve(body ? JSON.parse(body) : {}); }
+      catch (e) { resolve({}); }
+    });
+    req.on("error", reject);
+  });
+}
+
 export async function handleRssRequest(
   fullUrl: string,
-  _req: IncomingMessage,
+  req: IncomingMessage,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   let u: URL;
   try {
@@ -169,17 +210,54 @@ export async function handleRssRequest(
   }
 
   if (u.pathname === "/api/rss/feeds") {
-    return { status: 200, body: { feeds: loadConfiguredFeeds() } };
+    if (req.method === "GET") {
+      const feeds = await loadConfiguredFeeds();
+      return { status: 200, body: { feeds } };
+    }
+    
+    if (req.method === "POST") {
+      const body = await parseJsonBody(req);
+      const url = String(body.url || "").trim();
+      let label = String(body.label || "").trim();
+      if (!isAllowedFeedUrl(url)) {
+         return { status: 400, body: { error: "bad_request", message: "Invalid feed URL" } };
+      }
+      if (!label) label = hostnameFromUrl(url);
+      
+      const id = `feed-${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
+      try {
+        const pool = getPool();
+        await pool.query("INSERT INTO rss_feeds (id, url, label) VALUES ($1, $2, $3)", [id, url, label]);
+        return { status: 200, body: { success: true, feed: { id, url, label } } };
+      } catch (e: any) {
+        if (e.code === '23505') { // unique violation
+           return { status: 400, body: { error: "duplicate", message: "Feed URL already exists" } };
+        }
+        return { status: 500, body: { error: "db_error", message: String(e) } };
+      }
+    }
+
+    if (req.method === "DELETE") {
+       const id = u.searchParams.get("id");
+       if (!id) return { status: 400, body: { error: "bad_request", message: "id is required" } };
+       try {
+         const pool = getPool();
+         await pool.query("DELETE FROM rss_feeds WHERE id = $1", [id]);
+         return { status: 200, body: { success: true } };
+       } catch (e: any) {
+         return { status: 500, body: { error: "db_error", message: String(e) } };
+       }
+    }
   }
 
-  if (u.pathname === "/api/rss/items") {
+  if (u.pathname === "/api/rss/items" && req.method === "GET") {
     const feedUrl = u.searchParams.get("feedUrl");
     const refresh = u.searchParams.get("refresh") === "1" || u.searchParams.get("refresh") === "true";
     const limitRaw = u.searchParams.get("limit");
     const limit = Math.min(100, Math.max(1, Number(limitRaw) || 40));
 
     if (feedUrl) {
-      const feed = resolveAllowedFeed(feedUrl);
+      const feed = await resolveAllowedFeed(feedUrl);
       if (!feed) {
         return { status: 400, body: { error: "unknown_feed", message: "feedUrl is not in the configured allowlist" } };
       }

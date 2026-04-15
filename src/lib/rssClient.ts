@@ -1,4 +1,5 @@
 export interface RssConfiguredFeed {
+  id?: string;
   url: string;
   label: string;
 }
@@ -21,6 +22,27 @@ export async function fetchRssFeeds(): Promise<RssConfiguredFeed[]> {
     throw new Error(msg);
   }
   return Array.isArray(data.feeds) ? data.feeds : [];
+}
+
+export async function addRssFeed(url: string, label: string): Promise<RssConfiguredFeed> {
+  const res = await fetch("/api/rss/feeds", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, label })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  return data.feed as RssConfiguredFeed;
+}
+
+export async function removeRssFeed(id: string): Promise<void> {
+  const res = await fetch(`/api/rss/feeds?id=${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.message || `HTTP ${res.status}`);
+  }
 }
 
 export async function fetchRssItems(opts?: {

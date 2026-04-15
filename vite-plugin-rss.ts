@@ -6,7 +6,11 @@ function installRssMiddleware(server: ViteDevServer | PreviewServer) {
   server.middlewares.use(
     async (req: IncomingMessage, res: ServerResponse, next: (err?: unknown) => void) => {
       const pathOnly = req.url?.split("?")[0] ?? "";
-      if (req.method !== "GET" || !pathOnly.startsWith("/api/rss")) {
+      if (!pathOnly.startsWith("/api/rss")) {
+        next();
+        return;
+      }
+      if (req.method !== "GET" && req.method !== "POST" && req.method !== "DELETE") {
         next();
         return;
       }

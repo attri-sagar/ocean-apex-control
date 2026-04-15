@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { agents } from "@/data/mockData";
+import { useAgents } from "@/contexts/AgentsContext";
 import { Badge } from "@/components/ui/badge";
 import { Zap, Clock, Activity, Settings, Play, Pause } from "lucide-react";
 import { BarChart, Bar, ResponsiveContainer, Tooltip } from "recharts";
@@ -19,7 +19,9 @@ const statusDotClass: Record<string, string> = {
   offline: "bg-muted-foreground",
 };
 
-const AgentProfiles = () => (
+const AgentProfiles = () => {
+  const { agents } = useAgents();
+  return (
   <div className="space-y-5">
     {/* Summary bar */}
     <motion.div
@@ -36,16 +38,16 @@ const AgentProfiles = () => (
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-destructive" /> {agents.filter(a => a.status === "error").length} Error</span>
       </div>
       <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground font-mono">
-        <span>Total Tasks: {agents.reduce((acc, a) => acc + a.tasksCompleted, 0)}</span>
+        <span>Total Tasks: {agents.reduce((acc, a) => acc + (a.tasksCompleted || 0), 0)}</span>
         <span>|</span>
-        <span>Avg Accuracy: {(agents.reduce((acc, a) => acc + a.accuracy, 0) / agents.length).toFixed(1)}%</span>
+        <span>Avg Accuracy: {agents.length ? (agents.reduce((acc, a) => acc + (a.accuracy || 0), 0) / agents.length).toFixed(1) : "0"}%</span>
       </div>
     </motion.div>
 
     {/* Agent cards */}
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
       {agents.map((agent, i) => {
-        const weekData = agent.weeklyStats.map((v, idx) => ({ day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][idx], tasks: v }));
+        const weekData = (agent.weeklyStats || [0,0,0,0,0,0,0]).map((v, idx) => ({ day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][idx], tasks: v || 0 }));
         return (
           <motion.div
             key={agent.id}
@@ -127,7 +129,7 @@ const AgentProfiles = () => (
 
             {/* Skills */}
             <div className="flex flex-wrap gap-1.5 mb-4">
-              {agent.skills.map((skill) => (
+              { (agent.skills || []).map((skill) => (
                 <span
                   key={skill}
                   className="text-[10px] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground"
@@ -167,6 +169,7 @@ const AgentProfiles = () => (
       })}
     </div>
   </div>
-);
+  );
+};
 
 export default AgentProfiles;

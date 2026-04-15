@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS rss_feeds (
+  id TEXT PRIMARY KEY,
+  url TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

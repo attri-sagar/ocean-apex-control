@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { CheckCircle, Bot, Target, Activity, Rocket, Shield, ListTodo, FileBarChart, MessageCircle, RefreshCw, Cpu, HardDrive, Wifi, Database } from "lucide-react";
-import { metricCards, activityFeed, agents, systemHealth, quickActions } from "@/data/mockData";
+import { metricCards, activityFeed, systemHealth, quickActions } from "@/data/mockData";
+import { useAgents } from "@/contexts/AgentsContext";
 import { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
@@ -65,7 +66,9 @@ const SystemHealthBar = ({ label, value, icon: Icon }: { label: string; value: n
   </div>
 );
 
-const CommandDeck = () => (
+const CommandDeck = () => {
+  const { agents } = useAgents();
+  return (
   <div className="space-y-5">
     {/* Metric Cards */}
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -215,6 +218,7 @@ const CommandDeck = () => (
       </motion.div>
     </div>
   </div>
-);
+  );
+};
 
 export default CommandDeck;
