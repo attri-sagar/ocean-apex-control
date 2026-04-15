@@ -20,7 +20,9 @@ interface TaskDetailPanelProps {
 }
 
 export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDelete }: TaskDetailPanelProps) {
-  const { agents: roster } = useAgents();
+  const { agents: roster, activeAgent } = useAgents();
+  const myName = activeAgent?.name || "You";
+  const myEmoji = activeAgent?.emoji || "👤";
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDesc, setEditDesc] = useState(task.description);
   const [editPriority, setEditPriority] = useState(task.priority);
@@ -58,7 +60,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
 
   const addSubtask = () => {
     if (!newSubtask.trim()) return;
-    setLocalActivities((prev) => [{ id: `act-loc-${Date.now()}`, agentName: "You", agentEmoji: "👤", description: `Added subtask: ${newSubtask.trim()}`, createdAt: new Date().toISOString() }, ...prev]);
+    setLocalActivities((prev) => [{ id: `act-loc-${Date.now()}`, agentName: myName, agentEmoji: myEmoji, description: `Added subtask: ${newSubtask.trim()}`, createdAt: new Date().toISOString() }, ...prev]);
     setSubtasks((prev) => [...prev, { id: `s-new-${Date.now()}`, taskId: task.id, title: newSubtask.trim(), completed: false }]);
     setNewSubtask("");
   };
@@ -69,7 +71,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
 
   const addAssignee = () => {
     if (!newAssignee.trim()) return;
-    setLocalActivities((prev) => [{ id: `act-loc-${Date.now()}`, agentName: "You", agentEmoji: "👤", description: `Assigned ${newAssignee.trim()}`, createdAt: new Date().toISOString() }, ...prev]);
+    setLocalActivities((prev) => [{ id: `act-loc-${Date.now()}`, agentName: myName, agentEmoji: myEmoji, description: `Assigned ${newAssignee.trim()}`, createdAt: new Date().toISOString() }, ...prev]);
     setAssignees((prev) => [
       ...prev,
       { id: `a-new-${Date.now()}`, taskId: task.id, displayName: newAssignee.trim(), color: assigneeColors[prev.length % assigneeColors.length] },
@@ -79,7 +81,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
 
   const removeAssignee = (id: string) => {
     const a = assignees.find(x => x.id === id);
-    if(a) setLocalActivities((prev) => [{ id: `act-loc-${Date.now()}`, agentName: "You", agentEmoji: "👤", description: `Unassigned ${a.displayName}`, createdAt: new Date().toISOString() }, ...prev]);
+    if(a) setLocalActivities((prev) => [{ id: `act-loc-${Date.now()}`, agentName: myName, agentEmoji: myEmoji, description: `Unassigned ${a.displayName}`, createdAt: new Date().toISOString() }, ...prev]);
     setAssignees((prev) => prev.filter((a) => a.id !== id));
   };
 
@@ -168,7 +170,17 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
                 ))}
               </div>
               <div className="flex gap-2 mt-2">
-                <Select value={newAssignee} onValueChange={(val) => { setNewAssignee(val); }}>
+                <Select key={assignees.length} onValueChange={(val) => {
+                  if (!val.trim()) return;
+                  const target = roster.find(r => r.name === val.trim());
+                  if (!target) return;
+                  if (assignees.find(a => a.displayName === target.name)) return;
+                  setLocalActivities((prev) => [{ id: `act-loc-${Date.now()}`, agentName: myName, agentEmoji: myEmoji, description: `Assigned ${target.name}`, createdAt: new Date().toISOString() }, ...prev]);
+                  setAssignees((prev) => [
+                    ...prev,
+                    { id: `a-new-${Date.now()}`, taskId: task.id, displayName: target.name, color: target.accentColor || assigneeColors[prev.length % assigneeColors.length] },
+                  ]);
+                }}>
                   <SelectTrigger className="bg-secondary/30 border-border text-xs h-8 flex-1">
                     <SelectValue placeholder="Select assignee..." />
                   </SelectTrigger>
@@ -183,7 +195,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
                     ))}
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={addAssignee}><Plus className="w-3 h-3" /></Button>
+                
               </div>
             </div>
 
@@ -230,26 +242,37 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
             </div>
 
             
-            {/* Task Summary / Activity Log */}
-            <div className="pt-2 border-t border-border">
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 block flex items-center gap-2">
-                Task Summary
+            {/* Task Timeline / Activity Log */}
+            <div className="pt-4 mt-4 border-t border-border">
+              <label className="text-xs text-muted-foreground uppercase tracking-wider mb-4 block font-semibold">
+                Task Timeline
               </label>
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+              <div className="relative pl-3 max-h-60 overflow-y-auto pr-2">
+                {/* The vertical connector line */}
+                <div className="absolute left-[23px] top-3 bottom-3 w-[2px] bg-border z-0" />
+                
                 {localActivities.map((act: any) => (
-                  <div key={act.id} className="text-xs flex gap-2 items-start bg-secondary/20 p-2 rounded-md">
-                    <span className="shrink-0">{act.agentEmoji}</span>
-                    <div className="flex-1">
-                      <span className="font-semibold text-foreground/80">{act.agentName}</span>
-                      <span className="text-muted-foreground ml-1">{act.description}</span>
-                      <div className="text-[9px] text-muted-foreground/60 mt-0.5">
-                        {new Date(act.createdAt).toLocaleString()}
+                  <div key={act.id} className="relative flex gap-4 items-start mb-6 last:mb-2 z-10">
+                    {/* Node */}
+                    <div className="w-7 h-7 rounded-full bg-background border-2 border-muted flex items-center justify-center text-[12px] shadow-sm z-10 shrink-0">
+                      {act.agentEmoji}
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="flex-1 pt-0.5">
+                      <div className="text-[10px] text-muted-foreground mb-1">
+                        {new Date(act.createdAt).toLocaleString(undefined, {
+                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        })}
+                      </div>
+                      <div className="text-xs font-semibold text-foreground">
+                        {act.description} <span className="text-muted-foreground/60 font-normal ml-1 text-[10px]">by {act.agentName}</span>
                       </div>
                     </div>
                   </div>
                 ))}
                 {(!localActivities || localActivities.length === 0) && (
-                  <div className="text-xs text-muted-foreground italic">No activity recorded yet.</div>
+                  <div className="text-xs text-muted-foreground italic pl-10">No activity recorded yet.</div>
                 )}
               </div>
             </div>

@@ -39,7 +39,13 @@ export function AgentsProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
-  const activeAgent = agents.find(a => a.status === "active") || agents[0] || null;
+  const activeAgent = agents.find(a => a.id === "h1") || agents[0] || null;
+  useEffect(() => {
+    if (activeAgent) {
+      localStorage.setItem("apex_active_agent_name", activeAgent.name);
+      localStorage.setItem("apex_active_agent_emoji", activeAgent.emoji);
+    }
+  }, [activeAgent]);
 
   return (
     <AgentsContext.Provider value={{ agents, activeAgent, refreshAgents, isLoading }}>

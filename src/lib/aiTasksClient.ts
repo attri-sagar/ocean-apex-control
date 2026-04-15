@@ -14,8 +14,8 @@ async function postAiTasks(body: Record<string, unknown>): Promise<Record<string
       "x-webhook-secret": webhookSecret(),
     },
     body: JSON.stringify({
-      agent_name: "Web UI",
-      agent_emoji: "🖥️",
+      agent_name: localStorage.getItem("apex_active_agent_name") || "Human Operator",
+      agent_emoji: localStorage.getItem("apex_active_agent_emoji") || "👤",
       ...body,
     }),
   });
