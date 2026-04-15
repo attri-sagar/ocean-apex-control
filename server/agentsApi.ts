@@ -19,6 +19,13 @@ export async function handleAgentsRequest(
     if (req.method === "GET") {
       try {
         const res = await pool.query("SELECT * FROM agents ORDER BY created_at ASC");
+        const userRes = await pool.query("SELECT id, name, role FROM users");
+        const humanRes = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_name = 'human'");
+        let humanUsers = [];
+        if (humanRes.rowCount > 0) {
+          const hr = await pool.query("SELECT id, name, role FROM human");
+          humanUsers = hr.rows;
+        }
         const agents = res.rows.map(r => ({
           id: r.id,
           name: r.name,
@@ -36,7 +43,24 @@ export async function handleAgentsRequest(
           responseTime: r.response_time,
           model: r.model
         }));
-        return { status: 200, body: { agents } };
+        const allHumans = [...userRes.rows, ...humanUsers].map(u => ({
+          id: u.id,
+          name: u.name,
+          emoji: '👤',
+          type: 'Human',
+          role: u.role,
+          status: 'active',
+          currentActivity: 'Viewing',
+          lastSeen: new Date().toISOString(),
+          tasksCompleted: 0,
+          accuracy: 100,
+          skills: [],
+          accentColor: '#10b981',
+          uptime: 100,
+          responseTime: '0ms',
+          model: 'human'
+        }));
+        return { status: 200, body: { agents: [...allHumans, ...agents] } };
       } catch (e: any) {
         return { status: 500, body: { error: "db_error", message: e.message } };
       }

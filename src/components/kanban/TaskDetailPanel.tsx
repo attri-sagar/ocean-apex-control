@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useAgents } from "@/contexts/AgentsContext";
 import { toast } from "sonner";
 
 interface TaskDetailPanelProps {
@@ -19,6 +20,7 @@ interface TaskDetailPanelProps {
 }
 
 export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDelete }: TaskDetailPanelProps) {
+  const { agents: roster } = useAgents();
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDesc, setEditDesc] = useState(task.description);
   const [editPriority, setEditPriority] = useState(task.priority);
@@ -29,6 +31,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
   const [assignees, setAssignees] = useState(task.assignees);
   const [newAssignee, setNewAssignee] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [localActivities, setLocalActivities] = useState<any[]>(task.activities || []);
 
   const assigneeColors = ["#0ea5e9", "#f59e0b", "#a855f7", "#ef4444", "#22c55e", "#f43f5e", "#06b6d4", "#8b5cf6"];
 
@@ -55,6 +58,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
 
   const addSubtask = () => {
     if (!newSubtask.trim()) return;
+    setLocalActivities((prev) => [{ id: `act-loc-${Date.now()}`, agentName: "You", agentEmoji: "👤", description: `Added subtask: ${newSubtask.trim()}`, createdAt: new Date().toISOString() }, ...prev]);
     setSubtasks((prev) => [...prev, { id: `s-new-${Date.now()}`, taskId: task.id, title: newSubtask.trim(), completed: false }]);
     setNewSubtask("");
   };
@@ -65,6 +69,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
 
   const addAssignee = () => {
     if (!newAssignee.trim()) return;
+    setLocalActivities((prev) => [{ id: `act-loc-${Date.now()}`, agentName: "You", agentEmoji: "👤", description: `Assigned ${newAssignee.trim()}`, createdAt: new Date().toISOString() }, ...prev]);
     setAssignees((prev) => [
       ...prev,
       { id: `a-new-${Date.now()}`, taskId: task.id, displayName: newAssignee.trim(), color: assigneeColors[prev.length % assigneeColors.length] },
@@ -73,6 +78,8 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
   };
 
   const removeAssignee = (id: string) => {
+    const a = assignees.find(x => x.id === id);
+    if(a) setLocalActivities((prev) => [{ id: `act-loc-${Date.now()}`, agentName: "You", agentEmoji: "👤", description: `Unassigned ${a.displayName}`, createdAt: new Date().toISOString() }, ...prev]);
     setAssignees((prev) => prev.filter((a) => a.id !== id));
   };
 
@@ -161,7 +168,21 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
                 ))}
               </div>
               <div className="flex gap-2 mt-2">
-                <Input placeholder="Add assignee..." value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addAssignee()} className="bg-secondary/30 border-border text-xs h-8 flex-1" />
+                <Select value={newAssignee} onValueChange={(val) => { setNewAssignee(val); }}>
+                  <SelectTrigger className="bg-secondary/30 border-border text-xs h-8 flex-1">
+                    <SelectValue placeholder="Select assignee..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roster.map(member => (
+                      <SelectItem key={member.id} value={member.name}>
+                        <span className="flex items-center gap-2">
+                          <span>{member.emoji}</span>
+                          <span>{member.name}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={addAssignee}><Plus className="w-3 h-3" /></Button>
               </div>
             </div>
@@ -215,7 +236,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
                 Task Summary
               </label>
               <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                {(task.activities || []).map((act: any) => (
+                {localActivities.map((act: any) => (
                   <div key={act.id} className="text-xs flex gap-2 items-start bg-secondary/20 p-2 rounded-md">
                     <span className="shrink-0">{act.agentEmoji}</span>
                     <div className="flex-1">
@@ -227,7 +248,7 @@ export default function TaskDetailPanel({ task, columns, onClose, onUpdate, onDe
                     </div>
                   </div>
                 ))}
-                {(!task.activities || task.activities.length === 0) && (
+                {(!localActivities || localActivities.length === 0) && (
                   <div className="text-xs text-muted-foreground italic">No activity recorded yet.</div>
                 )}
               </div>
