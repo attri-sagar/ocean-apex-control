@@ -106,11 +106,17 @@ const IntegrationGuide = () => {
           <div className="glass-card p-6">
             <h3 className="text-md font-bold mb-4 flex items-center gap-2">
               <Webhook className="w-4 h-4 text-primary" />
-              Webhooks
+              Generic Webhooks
             </h3>
-            <p className="text-xs text-muted-foreground">
-              Subscribe to board state changes by registering a webhook URL with the control plane.
+            <p className="text-xs text-muted-foreground mb-4">
+              Subscribe any external system to board state changes by registering a webhook URL. Supports OpenClaw, Zapier, n8n, Slack, or custom APIs.
             </p>
+            <div className="bg-black/40 rounded p-3 font-mono text-[10px] text-muted-foreground mb-2">
+              <div><span className="text-primary font-bold">POST</span> /api/webhooks</div>
+            </div>
+            <div className="bg-black/40 rounded p-3 font-mono text-[10px] text-foreground/80 overflow-x-auto">
+{'{ "target_url": "https://your-api.com/hook", "events": ["task.created", "task.assigned"] }'}
+            </div>
           </div>
         </div>
       </div>

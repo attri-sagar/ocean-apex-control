@@ -2,6 +2,7 @@ import { boardColumns } from "../src/data/kanbanData.ts";
 import type { KanbanTask, Subtask } from "../src/data/mockData.ts";
 import { getPool } from "./db/pool.ts";
 import * as repo from "./aiTasksRepo.ts";
+import { dispatchWebhookEvent } from "./webhookDispatcher.ts";
 
 const ASSIGNEE_COLORS = [
   "#0ea5e9",
@@ -211,7 +212,9 @@ export async function handleAiTasksPost(
           agent_emoji,
           tags,
         });
-        return { status: 200, body: { task: await apiTaskWithMeta(task) } };
+        const apiTask = await apiTaskWithMeta(task);
+        dispatchWebhookEvent("task.created", apiTask);
+        return { status: 200, body: { task: apiTask } };
       }
 
       if (action === "get") {
@@ -329,9 +332,11 @@ export async function handleAiTasksPost(
         if (!updated) {
           return { status: 404, body: { error: "not_found", message: "Task not found" } };
         }
+        const apiTask = await apiTaskWithMeta(updated);
+        dispatchWebhookEvent("task.assigned", { task: apiTask, assigned_names: names });
         return {
           status: 200,
-          body: { task: await apiTaskWithMeta(updated), assignees: updated.assignees },
+          body: { task: apiTask, assignees: updated.assignees },
         };
       }
 
